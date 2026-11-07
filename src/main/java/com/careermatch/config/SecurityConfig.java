@@ -1,16 +1,20 @@
 
 package com.careermatch.config;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.http.HttpServletResponse;
 
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpStatus;
+
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
@@ -18,7 +22,8 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
@@ -46,30 +51,55 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth ->
                         auth
+                                .dispatcherTypeMatchers(DispatcherType.ERROR)
+                                .permitAll()
+
                                 .requestMatchers(
                                         "/api/health",
                                         "/api/auth/register",
                                         "/api/auth/login"
                                 ).permitAll()
 
+                                .requestMatchers("/api/admin/**")
+                                .hasRole("ADMIN")
+
                                 .anyRequest().authenticated()
                 )
 
-                // Return 401 when authentication is missing or invalid
                 .exceptionHandling(exception ->
-                        exception.authenticationEntryPoint(
-                                new HttpStatusEntryPoint(
-                                        HttpStatus.UNAUTHORIZED
+                        exception
+                                .authenticationEntryPoint(
+                                        (request, response, ex) ->
+                                                response.setStatus(
+                                                        HttpServletResponse.SC_UNAUTHORIZED
+                                                )
                                 )
-                        )
+
+                                .accessDeniedHandler(
+                                        (request, response, ex) ->
+                                                response.setStatus(
+                                                        HttpServletResponse.SC_FORBIDDEN
+                                                )
+                                )
                 )
 
-                // Run JWT filter before username/password filter
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
                 );
 
         return http.build();
+    }
+
+    @Bean
+    public FilterRegistrationBean<JwtAuthenticationFilter>
+    jwtFilterRegistration(JwtAuthenticationFilter filter) {
+
+        FilterRegistrationBean<JwtAuthenticationFilter> registration =
+                new FilterRegistrationBean<>(filter);
+
+        registration.setEnabled(false);
+
+        return registration;
     }
 }
