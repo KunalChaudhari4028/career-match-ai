@@ -1,6 +1,9 @@
 package com.careermatch.controller;
 
 import com.careermatch.dto.ResumeResponseDto;
+import com.careermatch.entity.Resume;
+import com.careermatch.service.ResumeAnalysisService;
+import com.careermatch.service.ResumeParserService;
 import com.careermatch.service.ResumeService;
 
 import org.springframework.core.io.ByteArrayResource;
@@ -18,9 +21,14 @@ import java.util.List;
 public class ResumeController {
 
     private final ResumeService resumeService;
+    private final ResumeParserService  resumeParserService;
+    private final ResumeAnalysisService resumeAnalysisService;
 
-    public ResumeController(ResumeService resumeService) {
+    public ResumeController(ResumeService resumeService, ResumeParserService resumeParserService, ResumeAnalysisService resumeAnalysisService) {
+
         this.resumeService = resumeService;
+        this.resumeParserService = resumeParserService;
+        this.resumeAnalysisService = resumeAnalysisService;
     }
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -88,4 +96,27 @@ public class ResumeController {
 
         return resumeService.updateResume(id, file, email);
     }
+
+    @GetMapping("/{id}/extract-text")
+    public String extractResumeText(
+            @PathVariable Long id,
+            Authentication authentication) {
+
+        String email = authentication.getName();
+
+        String filePath =
+                resumeService.getResumeFilePath(id, email);
+
+        return resumeParserService.extractText(filePath);
+    }
+    @GetMapping("/{id}/extract-skills")
+    public List<String> extractResumeSkills(
+            @PathVariable Long id,
+            Authentication authentication) {
+
+        String email = authentication.getName();
+
+        return resumeAnalysisService.analyzeSkills(id, email);
+    }
+
 }

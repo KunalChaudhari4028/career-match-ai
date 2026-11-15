@@ -273,4 +273,23 @@ public class ResumeService {
             );
         }
     }
+    public String getResumeFilePath(Long id, String email) {
+
+        Resume resume = resumeRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "Resume not found"
+                        )
+                );
+
+        if (!resume.getUser().getEmail().equals(email)) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "You are not allowed to access this resume"
+            );
+        }
+
+        return resume.getFilePath();
+    }
 }
